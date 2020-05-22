@@ -10,6 +10,10 @@ ST = 0b10000100
 CALL = 0b01010000
 RET = 0b00010001
 ADD = 0b10100000
+CMP = 0b10100111
+JMP = 0b01010100
+JEQ = 0b01010101
+JNE = 0b01010110
 
 class CPU:
     """Main CPU class."""
@@ -34,6 +38,10 @@ class CPU:
         self.branch_table[CALL] = self.handle_call
         self.branch_table[RET] = self.handle_return
         self.branch_table[ADD] = self.handle_add
+        self.branch_table[CMP] = self.handle_cmp
+        self.branch_table[JMP] = self.handle_jmp
+        self.branch_table[JEQ] = self.handle_jeq
+        self.branch_table[JNE] = self.handle_jne
 
     def handle_st(self, pc):
         reg_num = self.ram[self.pc + 1]
@@ -63,10 +71,30 @@ class CPU:
         """ALU operations."""
         if op == "ADD":
             self.reg[reg_a] += self.reg[reg_b]
+
         elif op == "SUB":
             self.reg[reg_a] -= self.reg[reg_b]
+
         elif op == "MUL":
             self.reg[reg_a] *= self.reg[reg_b]
+
+        elif op == "CMP":
+
+            if self.reg[reg_a] == self.reg[reg_b]:
+                self.E = 1
+            else:
+                self.E = 0
+
+            if self.reg[reg_a] < self.reg[reg_b]:
+                self.L = 1
+            else:
+                self.L = 0
+            
+            if self.reg[reg_a] > self.reg[reg_b]:
+                self.G = 1
+            else: 
+                self.G = 0
+
         else:
             raise Exception("Unsupported ALU operation")
 
@@ -119,6 +147,12 @@ class CPU:
         self.alu("MUL", reg_a, reg_b)
         self.pc += 3
 
+    def handle_cmp(self, reg_a, reg_b):
+        reg_a = self.ram_read(self.pc + 1)
+        reg_b = self.ram_read(self.pc + 2)
+        self.alu("CMP", reg_a, reg_b)
+        self.pc += 3
+
     def handle_call(self, reg_a):
         return_address = self.pc + 2
 
@@ -141,6 +175,26 @@ class CPU:
     def handle_add(self, reg_a, reg_b):
         self.alu("ADD", reg_a, reg_b)
         self.pc += 3
+    
+    def handle_jmp(self, reg_a, reg_b):
+        pointer = self.ram_read(self.pc + 1)
+        self.pc = self.reg[pointer]
+    
+    def handle_jeq(self, reg_a, reg_b):
+        pointer = self.ram_read(self.pc + 1)
+        
+        if self.E == 1:
+            self.pc = self.reg[pointer]
+        else: 
+            self.pc += 2
+    
+    def handle_jne(self, reg_a, reg_b):
+        pointer = self.ram_read(self.pc + 1)
+
+        if self.E == 0:
+            self.pc = self.reg[pointer]
+        else:
+            self.pc += 2
 
     def run(self):
         """Run the CPU."""
@@ -166,6 +220,14 @@ class CPU:
             elif instruction == RET:
                 self.branch_table[instruction]()
             elif instruction == ADD:
+                self.branch_table[instruction](reg_a, reg_b)
+            elif instruction == CMP:
+                self.branch_table[instruction](reg_a, reg_b)
+            elif instruction == JMP:
+                self.branch_table[instruction](reg_a, reg_b)
+            elif instruction == JEQ:
+                self.branch_table[instruction](reg_a, reg_b)
+            elif instruction == JNE:
                 self.branch_table[instruction](reg_a, reg_b)
             else:
                 self.branch_table[instruction]()
