@@ -7,15 +7,22 @@ MUL = 0b10100010
 POP = 0b01000110
 PUSH = 0b01000101
 ST = 0b10000100
+CALL = 0b01010000
+RET = 0b00010001
+ADD = 0b10100000
 
 class CPU:
     """Main CPU class."""
     def __init__(self):
         self.reg = [0] * 8
         self.ram = [0] * 256
+
         self.pc = 0
         self.sp = 7
         self.value = 0
+        # self.call = 8
+        # self.ret = 9
+
         self.branch_table = {}
         self.branch_table[HLT] = self.handle_hlt
         self.branch_table[LDI] = self.handle_ldi
@@ -24,6 +31,9 @@ class CPU:
         self.branch_table[POP] = self.handle_pop
         self.branch_table[PUSH] = self.handle_push
         self.branch_table[ST] = self.handle_st
+        self.branch_table[CALL] = self.handle_call
+        self.branch_table[RET] = self.handle_return
+        self.branch_table[ADD] = self.handle_add
 
     def handle_st(self, pc):
         reg_num = self.ram[self.pc + 1]
@@ -109,6 +119,29 @@ class CPU:
         self.alu("MUL", reg_a, reg_b)
         self.pc += 3
 
+    def handle_call(self, reg_a):
+        return_address = self.pc + 2
+
+        self.reg[self.sp] -= 1
+        top_of_the_stack_address = self.reg[self.sp]
+        self.ram[top_of_the_stack_address] = return_address
+
+        reg_num = self.ram[self.pc + 1]
+        subroutine_address = self.reg[reg_num]
+
+        self.pc = subroutine_address
+
+    def handle_return(self):
+        top_of_stack_address = self.reg[self.sp]
+        return_address = self.ram[top_of_stack_address]
+        self.reg[self.sp] += 1
+
+        self.pc = return_address
+    
+    def handle_add(self, reg_a, reg_b):
+        self.alu("ADD", reg_a, reg_b)
+        self.pc += 3
+
     def run(self):
         """Run the CPU."""
         running = True
@@ -117,6 +150,7 @@ class CPU:
             instruction = self.ram_read(self.pc)
             reg_a = self.ram_read(self.pc + 1)
             reg_b = self.ram_read(self.pc + 2)
+
             if instruction == LDI:
                 self.branch_table[instruction](reg_a, reg_b)
             elif instruction == MUL:
@@ -127,6 +161,12 @@ class CPU:
                 self.branch_table[instruction](reg_a, reg_b)
             elif instruction == POP:
                 self.branch_table[instruction](reg_a)
+            elif instruction == CALL:
+                self.branch_table[instruction](reg_a)
+            elif instruction == RET:
+                self.branch_table[instruction]()
+            elif instruction == ADD:
+                self.branch_table[instruction](reg_a, reg_b)
             else:
                 self.branch_table[instruction]()
 
